@@ -56,7 +56,7 @@ type HexMapMetadata struct {
 	MaxY int                     `json:"max_y"`
 }
 
-func StartRestController(hexMaps map[string]HexMap, transformTasks chan MapTransformTask) {
+func StartRestController(hexMaps map[string]HexMap, transformTasks chan MapTransformTask, port string) {
 	// Define a route and handler for serving static files at the root
 	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/", http.StripPrefix("/", fs))
@@ -222,6 +222,6 @@ func StartRestController(hexMaps map[string]HexMap, transformTasks chan MapTrans
 	})
 
 	// Start the server on port 8080
-	log.Println("Server starting on http://localhost:8080...")
-	http.ListenAndServe(":8080", nil)
+	log.Println("Server starting on http://localhost:"+port+"...")
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

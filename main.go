@@ -114,5 +114,9 @@ func main() {
 	transformTaskChannel := make(chan MapTransformTask)
 
 	go mapTransformWorker()
-	StartRestController(hexMaps, transformTaskChannel)
+	if len(os.Args) > 1 {
+		StartRestController(hexMaps, transformTaskChannel, os.Args[1])
+	} else {
+		StartRestController(hexMaps, transformTaskChannel, "8080")
+	}
 }
