@@ -94,33 +94,6 @@ const hex_attributes_by_type = {
 
 const hex_types = Object.keys(hex_attributes_by_type);
 
-function drag_start(event) {
-    document.body.style.cursor = 'grabbing';
-    event.dataTransfer.setDragImage(new Image(),0,0);
-
-    const style = getComputedStyle(event.target);
-    const data = {
-      'id': event.target.id,
-      'x': parseInt(style.left) - event.clientX,
-      'y': parseInt(style.top) - event.clientY
-    }
-    event.dataTransfer.setData('application/json', JSON.stringify(data));
-}
-
-function drag_over(event) {
-    const data = JSON.parse(event.dataTransfer.getData('application/json'));
-    var dm = document.getElementById(data.id);
-    dm.parentNode.appendChild(dm);
-    dm.style.left = (event.clientX + data.x) + 'px';
-    dm.style.top = (event.clientY + data.y) + 'px';
-    event.preventDefault();
-}
-
-function drop(event) {
-    drag_over(event);
-    document.body.style.cursor = 'auto';
-}
-
 function hexId(x, y) {
   return `${x}/${y}`;
 }
@@ -252,6 +225,8 @@ class HexMap {
     }
     this.scrollBox.appendChild(map);
     document.body.appendChild(this.scrollBox);
+    this.tx=0;
+    this.ty=0;
     this.updateFullscale();
     if (view_params.zoom == null) {
       this.setZoom(this.fullscale);
@@ -261,10 +236,10 @@ class HexMap {
     this.mapElement.style.left = (-view_params.x) + "px";
     this.mapElement.style.top = (-view_params.y) + "px";
 
-    this.scrollBox.addEventListener('dragover',drag_over);
-    this.scrollBox.addEventListener('drop',drop);
-    map.addEventListener("dragstart", drag_start);
-    map.draggable=true;
+    this.scrollBox.addEventListener('dragover',(event) => this.drag_over(event));
+    this.scrollBox.addEventListener('drop',(event) => this.drop(event));
+    this.scrollBox.addEventListener("dragstart", (event) => this.drag_start(event));
+    this.scrollBox.draggable=true;
     this.scrollBox.addEventListener("wheel", (evt) => {
       if( evt.wheelDelta > 0 )
       {
@@ -309,24 +284,6 @@ class HexMap {
     });
   }
 
-  updateFullscale() {
-    let heightScale = this.scrollBox.clientHeight / this.mapElement.offsetHeight;
-    let widthScale = this.scrollBox.clientWidth / this.mapElement.offsetWidth;
-    //console.log(`SB:${this.scrollBox.clientWidth}x${this.scrollBox.clientHeight} ME:${this.mapElement.offsetWidth}x${this.mapElement.offsetHeight}`);
-    this.fullscale = Math.min(widthScale, heightScale);
-  }
-
-
-  resize() {
-    if (this.zoom == this.fullscale)
-    {
-      this.updateFullscale();
-      this.setZoom(this.fullscale);
-    } else {
-      this.updateFullscale();
-    }
-  }
-
   updateMapData(maxX, maxY, minX, minY, mapCells, defaultHexData) {
     for (let cellId in this.hexes) {
         let b = this.hexes[cellId];
@@ -348,13 +305,34 @@ class HexMap {
     }
   }
 
+  updateTransform () {
+    this.mapElement.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.zoom})`;
+  }
+
   setZoom(z) {
     if(z>10) z=10;
     if(z<0.1) z=0.1;
     if( (1/1.1 < z) && (z < 1*1.1) ) z = 1;
     if( (this.fullscale/1.1 < z) && (z < this.fullscale*1.1) ) z = this.fullscale;
-    this.mapElement.style.transform = "scale(" + z + ")";
     this.zoom = z;
+    this.updateTransform();
+  }
+
+  updateFullscale() {
+    let heightScale = this.scrollBox.clientHeight / this.mapElement.offsetHeight;
+    let widthScale = this.scrollBox.clientWidth / this.mapElement.offsetWidth;
+    //console.log(`SB:${this.scrollBox.clientWidth}x${this.scrollBox.clientHeight} ME:${this.mapElement.offsetWidth}x${this.mapElement.offsetHeight}`);
+    this.fullscale = Math.min(widthScale, heightScale);
+  }
+
+  resize() {
+    if (this.zoom == this.fullscale)
+    {
+      this.updateFullscale();
+      this.setZoom(this.fullscale);
+    } else {
+      this.updateFullscale();
+    }
   }
 
   zoomIn() {
@@ -363,6 +341,33 @@ class HexMap {
 
   zoomOut() {
     this.setZoom(this.zoom/1.1);
+  }
+
+  setPos(x, y) {
+    this.tx = x;
+    this.ty = y;
+    this.updateTransform();
+  }
+
+  drag_start(event) {
+    document.body.style.cursor = 'grabbing';
+    event.dataTransfer.setDragImage(new Image(),0,0);
+    const data = {
+      'x': this.tx-event.clientX,
+      'y': this.ty-event.clientY
+    }
+    event.dataTransfer.setData('application/json', JSON.stringify(data));
+  }
+
+  drag_over(event) {
+    const data = JSON.parse(event.dataTransfer.getData('application/json'));
+    this.setPos(event.clientX + data.x, event.clientY + data.y);
+    event.preventDefault();
+  }
+
+  drop(event) {
+    this.drag_over(event);
+    document.body.style.cursor = 'auto';
   }
 
   getHexData( x, y ) {
