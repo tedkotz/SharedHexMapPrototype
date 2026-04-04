@@ -252,7 +252,12 @@ class HexMap {
     }
     this.scrollBox.appendChild(map);
     document.body.appendChild(this.scrollBox);
-    this.setZoom(view_params.zoom);
+    this.updateFullscale();
+    if (view_params.zoom == null) {
+      this.setZoom(this.fullscale);
+    } else {
+      this.setZoom(view_params.zoom);
+    }
     this.mapElement.style.left = (-view_params.x) + "px";
     this.mapElement.style.top = (-view_params.y) + "px";
 
@@ -304,6 +309,23 @@ class HexMap {
     });
   }
 
+  updateFullscale() {
+    let widthScale = this.scrollBox.offsetHeight / this.mapElement.offsetHeight;
+    let heightScale = this.scrollBox.offsetWidth / this.mapElement.offsetWidth;
+    this.fullscale = Math.min(widthScale, heightScale);
+  }
+
+
+  resize() {
+    if (this.zoom == this.fullscale)
+    {
+      this.updateFullscale();
+      this.setZoom(this.fullscale);
+    } else {
+      this.updateFullscale();
+    }
+  }
+
   updateMapData(maxX, maxY, minX, minY, mapCells, defaultHexData) {
     for (let cellId in this.hexes) {
         let b = this.hexes[cellId];
@@ -328,7 +350,8 @@ class HexMap {
   setZoom(z) {
     if(z>10) z=10;
     if(z<0.1) z=0.1;
-    if( (z - 1)**2 < 0.005 ) z = 1;
+    if( (1/1.1 < z) && (z < 1*1.1) ) z = 1;
+    if( (this.fullscale/1.1 < z) && (z < this.fullscale*1.1) ) z = this.fullscale;
     this.mapElement.style.transform = "scale(" + z + ")";
     this.zoom = z;
   }
@@ -445,7 +468,7 @@ map_settings_dialog.addEventListener("close", handleMapSettingsDialogClose );
 
 const params = new URLSearchParams(window.location.hash.slice(1));
 var view_params={
-  zoom: 1,
+  zoom: null,
   x: 0,
   y: 0
 };
@@ -487,6 +510,10 @@ if (params.has('map')) {
   hex_map = new HexMap(view_params,MAP_X, MAP_Y);
 }
 
+
+window.onresize = function() {
+  hex_map.resize();
+};
 
 </script>
 </html>
