@@ -310,8 +310,9 @@ class HexMap {
   }
 
   updateFullscale() {
-    let widthScale = this.scrollBox.offsetHeight / this.mapElement.offsetHeight;
-    let heightScale = this.scrollBox.offsetWidth / this.mapElement.offsetWidth;
+    let heightScale = this.scrollBox.clientHeight / this.mapElement.offsetHeight;
+    let widthScale = this.scrollBox.clientWidth / this.mapElement.offsetWidth;
+    //console.log(`SB:${this.scrollBox.clientWidth}x${this.scrollBox.clientHeight} ME:${this.mapElement.offsetWidth}x${this.mapElement.offsetHeight}`);
     this.fullscale = Math.min(widthScale, heightScale);
   }
 

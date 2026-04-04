@@ -28,12 +28,13 @@ div.map {
   top: 0;
   left: 0;
   display: flex;
+  width: fit-content;
   flex-direction: row;
   transition: transform 100ms ease;
   transform-origin: top left;
 }
 
-div.map div {
+div.map>div {
   display: flex;
   flex-direction: column;
 }
