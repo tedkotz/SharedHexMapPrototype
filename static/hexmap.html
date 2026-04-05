@@ -225,17 +225,14 @@ class HexMap {
     }
     this.scrollBox.appendChild(map);
     document.body.appendChild(this.scrollBox);
-    this.tx=0;
-    this.ty=0;
+    this.tx=-view_params.x;
+    this.ty=-view_params.y;
     this.updateFullscale();
     if (view_params.zoom == null) {
       this.setZoom(this.fullscale);
     } else {
       this.setZoom(view_params.zoom);
     }
-    this.mapElement.style.left = (-view_params.x) + "px";
-    this.mapElement.style.top = (-view_params.y) + "px";
-
     this.scrollBox.addEventListener('dragover',(event) => this.drag_over(event));
     this.scrollBox.addEventListener('drop',(event) => this.drop(event));
     this.scrollBox.addEventListener("dragstart", (event) => this.drag_start(event));
@@ -282,6 +279,9 @@ class HexMap {
           break;
       }
     });
+
+    map.getBoundingClientRect(); // Wait for the map to finish resizing
+    map.style.transition = "transform 100ms ease"; // enable smooth animations
   }
 
   updateMapData(maxX, maxY, minX, minY, mapCells, defaultHexData) {
@@ -344,8 +344,16 @@ class HexMap {
   }
 
   setPos(x, y) {
-    this.tx = x;
-    this.ty = y;
+    if( -2<=x && x<=2 ) {
+      this.tx = 0;
+    } else {
+      this.tx = x;
+    }
+    if( -2<=y && y<=2 ) {
+      this.ty = 0;
+    } else {
+      this.ty = y;
+    }
     this.updateTransform();
   }
 
@@ -393,30 +401,6 @@ function setTitle(title) {
   map_title_heading.textContent = title;
   map_heading_title.textContent = title;
 }
-
-
-// function reloadMap() {
-//   //do something better
-//   const style = getComputedStyle(hex_map.mapElement);
-//   let url = new URL(window.location.href);
-//   let newUrlString = url.toString();
-//   console.log(newUrlString);
-//
-//   let params = url.searchParams;
-//   params.set('viewx', -parseInt(style.left));
-//   params.set('viewy', -parseInt(style.top));
-//
-//   params.set('zoom', hex_map.zoom);
-//
-//   newUrlString = url.toString();
-//   console.log(newUrlString);
-//
-//   clearInterval(updateTimer);
-//
-//   //window.location.assign(newUrlString);
-//   //location.reload();
-// }
-
 
 function reloadMap() {
   loadMap(map_settings_dialog_filename.value).then(map => {
@@ -520,6 +504,7 @@ if (params.has('map')) {
 window.onresize = function() {
   hex_map.resize();
 };
+
 
 </script>
 </html>
