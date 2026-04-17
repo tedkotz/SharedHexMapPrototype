@@ -43,18 +43,19 @@ div.map>div {
 }
 
 button.hex {
-  width: 43.3px; /* height*sin 60 */
-  height: 50px;
-  overflow: hidden;
+  width: 45px; /* height*sin 60 */
+  height: 52px;
   white-space: nowrap;
+  background: url('hex-unknown.svg');
+  background-position: center;
 }
 
 div.map_column_even button.hex:first-child {
-  height: 25px;
+  height: 26px;
 }
 
 div.map_column_odd button.hex:last-child {
-  height: 25px;
+  height: 26px;
 }
 
 dialog, dialog * {

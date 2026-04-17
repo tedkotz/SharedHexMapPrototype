@@ -22,6 +22,9 @@
     <label for="hex_dialog_select">Terrain: </label>
     <select id="hex_dialog_select"></select>
 
+    <label for="hex_dialog_river">River: </label>
+    <input id="hex_dialog_river"></input>
+
     <label>Notes:</label>
     <textarea id="hex_dialog_textarea" rows="20" cols="80" placeholder="Enter notes about this hex here."></textarea>
   </form>
@@ -87,9 +90,6 @@ const hex_attributes_by_type = {
   'urban'    : new HexTypeAttributes('Urban'       , 'silver',        'black'),
   'deepwater': new HexTypeAttributes('Deep Water'  , 'navy',          'white'),
   'shallows' : new HexTypeAttributes('Shallows'    , 'aqua',          'black'),
-  'river9'   : new HexTypeAttributes('River N:S'   , 'aqua',          'black'),
-  'river18'  : new HexTypeAttributes('River SW:NE' , 'aqua',          'black'),
-  'river36'  : new HexTypeAttributes('River NW:SE' , 'aqua',          'black'),
 };
 
 const hex_types = Object.keys(hex_attributes_by_type);
@@ -121,7 +121,7 @@ function getRandomHexType() {
 }
 
 class HexData {
-  constructor( x, y, hexType = 'unknown', content = null ) {
+  constructor( x, y, hexType = 'unknown', content = null, river=0 ) {
     this.x = x;
     this.y = y;
     this.btn = document.createElement("BUTTON");
@@ -133,19 +133,23 @@ class HexData {
     this.btn.textContent = displayCordinates(x, y);
     this.btn.id = hexId(x, y);
     this.btn.classList.add('hex');
-    //this.setHexType(getRandomHexType());
-    this.setHexType(hexType);
+    //this.setHexType(getRandomHexType(), 0);
+    this.setHexType(hexType, river);
     this.btn.addEventListener("click", () => this.handleClick() );
   }
 
-  setHexType(hex_type) {
+  setHexType(hex_type, river) {
     if( !Object.hasOwn(hex_attributes_by_type, hex_type) ) {
-      hex_type = 'unknown'
+      hex_type = 'unknown';
+    }
+    if ( this.type == hex_type && this.river==river) {
+      return;
     }
     if (this.type) {
       this.btn.classList.remove(this.type);
     }
     this.type = hex_type;
+    this.river = river;
     this.btn.classList.add(hex_type);
     let attr = hex_attributes_by_type[hex_type];
     if (this.notes) {
@@ -155,12 +159,21 @@ class HexData {
     }
     this.btn.style.backgroundColor = attr.bg;
     this.btn.style.color = attr.fg;
+    var background = `url('hex-${hex_type}.svg')`;
+    // Add River and road overlays here
+    for( var river_bit = 0; river_bit < 6; ++river_bit) {
+      if( river & (1 << river_bit) ) {
+        background = `url('hex-river${river_bit}.svg'), ` + background;
+      }
+    }
+    this.btn.style.backgroundImage = background
   }
 
   handleClick() {
     hex_dialog_id.value = this.btn.id;
     hex_dialog_textarea.value = this.notes;
     hex_dialog_select.value = this.type;
+    hex_dialog_river.value = `${this.river}`
 
     hex_dialog_close_callback_id = this.btn.id;
 
@@ -168,10 +181,16 @@ class HexData {
   }
 
   handleHexDialogClose() {
+    var river = parseInt(hex_dialog_river.value);
+    if (isNaN(river) || river<0 || river>63) {
+      river = this.river
+    }
     if ( this.notes != hex_dialog_textarea.value ||
-         this.type != hex_dialog_select.value ) {
+         this.type != hex_dialog_select.value ||
+         this.river != river
+         ) {
       this.notes = hex_dialog_textarea.value;
-      this.setHexType(hex_dialog_select.value);
+      this.setHexType(hex_dialog_select.value, river);
       this.saveHex();
     }
   }
@@ -179,7 +198,8 @@ class HexData {
   async saveHex() {
     const content = {
       "type": this.type,
-      "notes": this.notes
+      "notes": this.notes,
+      "river": this.river
     }
 
     const response = await saveHex(
@@ -216,8 +236,9 @@ class HexMap {
         let cell = Object.hasOwn(mapCells, cellId) ? JSON.parse(mapCells[cellId]) : defaultHexData;
         let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
         let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
+        let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
         //console.log(type, notes)
-        let b = new HexData(x, y, type, notes);
+        let b = new HexData(x, y, type, notes, river);
         this.hexes[cellId] = b;
         d.appendChild(b.btn);
       }
@@ -291,6 +312,7 @@ class HexMap {
         let cell = Object.hasOwn(mapCells, cellId) ? JSON.parse(mapCells[cellId]) : defaultHexData;
         let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
         let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
+        let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
         //console.log(type, notes)
 
         if(hex_dialog_close_callback_id == cellId &&
@@ -301,7 +323,7 @@ class HexMap {
         }
 
         b.notes = notes;
-        b.setHexType(type);
+        b.setHexType(type, river);
     }
   }
 
@@ -441,6 +463,7 @@ var hex_dialog_close_callback_id = null;
 var suspend_updates=false;
 const hex_dialog = document.getElementById('hex_dialog');
 const hex_dialog_select = document.getElementById('hex_dialog_select');
+const hex_dialog_river = document.getElementById('hex_dialog_river');
 const hex_dialog_id = document.getElementById('hex_dialog_id');
 const hex_dialog_textarea = document.getElementById('hex_dialog_textarea');
 const map_settings_dialog  = document.getElementById('map_settings_dialog');
