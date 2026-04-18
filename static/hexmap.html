@@ -258,45 +258,47 @@ class HexMap {
     this.scrollBox.addEventListener('drop',(event) => this.drop(event));
     this.scrollBox.addEventListener("dragstart", (event) => this.drag_start(event));
     this.scrollBox.draggable=true;
-    this.scrollBox.addEventListener("wheel", (evt) => {
-      if( evt.wheelDelta > 0 )
+    this.scrollBox.addEventListener("wheel", (event) => {
+      if( event.wheelDelta > 0 )
       {
-        this.zoomIn();
+        const rect = this.scrollBox.getBoundingClientRect();
+        this.zoomIn(event.clientX - rect.left, event.clientY - rect.top);
       } else {
-        this.zoomOut();
+        const rect = this.scrollBox.getBoundingClientRect();
+        this.zoomOut(event.clientX - rect.left, event.clientY - rect.top);
       }
     });
-    document.body.addEventListener("keydown", (evt) => {
-      switch(evt.key)
+    document.body.addEventListener("keydown", (event) => {
+      switch(event.key)
       {
         case 'ArrowUp':
-          var oldTop = parseInt(getComputedStyle(this.mapElement).top);
-          this.mapElement.style.top = (oldTop - 5) + "px";
+          this.ty -= 5;
+          this.updateTransform();
           break;
 
         case 'ArrowDown':
-          var oldTop = parseInt(getComputedStyle(this.mapElement).top);
-          this.mapElement.style.top = (oldTop + 5) + "px";
+          this.ty += 5;
+          this.updateTransform();
           break;
 
         case 'ArrowLeft':
-          var oldLeft = parseInt(getComputedStyle(this.mapElement).left);
-          this.mapElement.style.left = (oldLeft - 5) + "px";
+          this.tx -= 5;
+          this.updateTransform();
           break;
 
         case 'ArrowRight':
-          var oldLeft = parseInt(getComputedStyle(this.mapElement).left);
-          this.mapElement.style.left = (oldLeft + 5) + "px";
+          this.tx += 5;
+          this.updateTransform();
           break;
 
         case '+':
         case '=':
-          this.zoomIn();
+          this.zoomIn(this.scrollBox.clientWidth/2, this.scrollBox.clientHeight/2);
           break;
 
         case '-':
         case '_':
-          this.zoomOut();
+          this.zoomOut(this.scrollBox.clientWidth/2, this.scrollBox.clientHeight/2);
           break;
       }
     });
@@ -331,11 +333,17 @@ class HexMap {
     this.mapElement.style.transform = `translate(${this.tx}px, ${this.ty}px) scale(${this.zoom})`;
   }
 
-  setZoom(z) {
+  setZoom(z, centerX, centerY) {
     if(z>10) z=10;
     if(z<0.1) z=0.1;
     if( (1/1.1 < z) && (z < 1*1.1) ) z = 1;
     if( (this.fullscale/1.1 < z) && (z < this.fullscale*1.1) ) z = this.fullscale;
+
+    this.tx = centerX + ((this.tx-centerX)*z/this.zoom);
+    if(isNaN(this.tx)) this.tx=0;
+
+    this.ty = centerY + ((this.ty-centerY)*z/this.zoom);
+    if(isNaN(this.ty)) this.ty=0;
     this.zoom = z;
     this.updateTransform();
   }
@@ -351,18 +359,18 @@ class HexMap {
     if (this.zoom == this.fullscale)
     {
       this.updateFullscale();
-      this.setZoom(this.fullscale);
+      this.setZoom(this.fullscale, 0, 0);
     } else {
       this.updateFullscale();
     }
   }
 
-  zoomIn() {
-    this.setZoom(this.zoom*1.1);
+  zoomIn(centerX, centerY) {
+    this.setZoom(this.zoom*1.1, centerX, centerY);
   }
 
-  zoomOut() {
-    this.setZoom(this.zoom/1.1);
+  zoomOut(centerX, centerY) {
+    this.setZoom(this.zoom/1.1, centerX, centerY);
   }
 
   setPos(x, y) {
