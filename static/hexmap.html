@@ -25,6 +25,9 @@
     <label for="hex_dialog_river" title="N:+1, NE:+2, SE:+4, S:+8, SW:+16, NW:+32">River: </label>
     <input id="hex_dialog_river" title="N:+1, NE:+2, SE:+4, S:+8, SW:+16, NW:+32"></input>
 
+    <label for="hex_dialog_road" title="N:+1, NE:+2, SE:+4, S:+8, SW:+16, NW:+32">Road: </label>
+    <input id="hex_dialog_road" title="N:+1, NE:+2, SE:+4, S:+8, SW:+16, NW:+32"></input>
+
     <label>Notes:</label>
     <textarea id="hex_dialog_textarea" rows="20" cols="80" placeholder="Enter notes about this hex here."></textarea>
   </form>
@@ -63,6 +66,38 @@
 
 </body>
 
+<!--  ❄️ ⛰️⛰︎ ᨒ  𖠰🏜️💀 💀☢️⚠️☣️  𓇼 𓆉 𓆝 𓆡 𓇼🏝️⛱️🌞    🏜️☀️⏳🔥 🏛️  🐟⛲ 💧 〰️♒ ✖  -->
+
+<!--
+     (15,0)_______(45,0)
+          /   0   \
+         /5       1\
+  (0,26)/           \(60,26)
+        \           /
+         \4       2/
+          \_______/
+    (15,52)   3   (45,52)
+
+
+Road
+Center 29,25
+0 (29,0)
+1 (52,12)
+2 (53,39)
+3 (29,52)
+4 (7,38)
+5 (8,13)
+
+Water
+Center 30,26
+0 (30,0)
+1 (53,14)
+2 (52,40)
+3 (30,52)
+4 (8,40)
+5 (7,14)
+-->
+
 <script>
 
 class HexTypeAttributes {
@@ -72,8 +107,6 @@ class HexTypeAttributes {
     this.fg = fg;
   }
 }
-
-<!--  ❄️ ⛰️⛰︎ ᨒ  𖠰🏜️💀 💀☢️⚠️☣️  𓇼 𓆉 𓆝 𓆡 𓇼🏝️⛱️🌞    🏜️☀️⏳🔥 🏛️  🐟⛲ 💧 〰️♒ ✖  ->
 
 const hex_attributes_by_type = {
   'unknown'  : new HexTypeAttributes('Unknown'     , 'darkgray',      'black'),
@@ -121,7 +154,7 @@ function getRandomHexType() {
 }
 
 class HexData {
-  constructor( x, y, hexType = 'unknown', content = null, river=0 ) {
+  constructor( x, y, hexType = 'unknown', content = null, river=0, road=0 ) {
     this.x = x;
     this.y = y;
     this.btn = document.createElement("BUTTON");
@@ -134,15 +167,15 @@ class HexData {
     this.btn.id = hexId(x, y);
     this.btn.classList.add('hex');
     //this.setHexType(getRandomHexType(), 0);
-    this.setHexType(hexType, river);
+    this.setHexType(hexType, river, road);
     this.btn.addEventListener("click", () => this.handleClick() );
   }
 
-  setHexType(hex_type, river) {
+  setHexType(hex_type, river, road) {
     if( !Object.hasOwn(hex_attributes_by_type, hex_type) ) {
       hex_type = 'unknown';
     }
-    if ( this.type == hex_type && this.river==river) {
+    if ( this.type == hex_type && this.river==river && this.road==road) {
       return;
     }
     if (this.type) {
@@ -150,6 +183,7 @@ class HexData {
     }
     this.type = hex_type;
     this.river = river;
+    this.road = road;
     this.btn.classList.add(hex_type);
     let attr = hex_attributes_by_type[hex_type];
     if (this.notes) {
@@ -166,6 +200,11 @@ class HexData {
         background = `url('hex-river${river_bit}.svg'), ` + background;
       }
     }
+    for( var road_bit = 0; road_bit < 6; ++road_bit) {
+      if( road & (1 << road_bit) ) {
+        background = `url('hex-road${road_bit}.svg'), ` + background;
+      }
+    }
     this.btn.style.backgroundImage = background
   }
 
@@ -174,6 +213,7 @@ class HexData {
     hex_dialog_textarea.value = this.notes;
     hex_dialog_select.value = this.type;
     hex_dialog_river.value = `${this.river}`
+    hex_dialog_road.value = `${this.road}`
 
     hex_dialog_close_callback_id = this.btn.id;
 
@@ -185,12 +225,17 @@ class HexData {
     if (isNaN(river) || river<0 || river>63) {
       river = this.river
     }
+    var road = parseInt(hex_dialog_road.value);
+    if (isNaN(road) || road<0 || road>63) {
+      road = this.road
+    }
     if ( this.notes != hex_dialog_textarea.value ||
          this.type != hex_dialog_select.value ||
-         this.river != river
+         this.river != river ||
+         this.road != road
          ) {
       this.notes = hex_dialog_textarea.value;
-      this.setHexType(hex_dialog_select.value, river);
+      this.setHexType(hex_dialog_select.value, river, road);
       this.saveHex();
     }
   }
@@ -199,7 +244,8 @@ class HexData {
     const content = {
       "type": this.type,
       "notes": this.notes,
-      "river": this.river
+      "river": this.river,
+      "road": this.road,
     }
 
     const response = await saveHex(
@@ -237,8 +283,9 @@ class HexMap {
         let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
         let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
         let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
+        let road = Object.hasOwn(cell, "road") ? cell["road"] : 0;
         //console.log(type, notes)
-        let b = new HexData(x, y, type, notes, river);
+        let b = new HexData(x, y, type, notes, river, road);
         this.hexes[cellId] = b;
         d.appendChild(b.btn);
       }
@@ -315,6 +362,7 @@ class HexMap {
         let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
         let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
         let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
+        let road = Object.hasOwn(cell, "road") ? cell["road"] : 0;
         //console.log(type, notes)
 
         if(hex_dialog_close_callback_id == cellId &&
@@ -325,7 +373,7 @@ class HexMap {
         }
 
         b.notes = notes;
-        b.setHexType(type, river);
+        b.setHexType(type, river, road);
     }
   }
 
