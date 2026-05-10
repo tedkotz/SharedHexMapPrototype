@@ -127,6 +127,15 @@ const hex_attributes_by_type = {
 
 const hex_types = Object.keys(hex_attributes_by_type);
 
+class HexStoredAttributes {
+  constructor (type, notes, river, road) {
+    this.type=type;
+    this.notes=notes;
+    this.river=river;
+    this.road=road;
+  }
+}
+
 function hexId(x, y) {
   return `${x}/${y}`;
 }
@@ -220,7 +229,7 @@ class HexData {
 
     // Update Hex Image background and river and road overlays
     if ( force_update || this.type != hex_type ||
-         this.river != river || this.road == road ) {
+         this.river != river || this.road != road ) {
       var background = `url('hex-${hex_type}.svg')`;
       for( var river_bit = 0; river_bit < 6; ++river_bit) {
         if( river & (1 << river_bit) ) {
@@ -270,12 +279,7 @@ class HexData {
   }
 
   async saveHex() {
-    const content = {
-      "type": this.type,
-      "notes": this.notes,
-      "river": this.river,
-      "road": this.road,
-    }
+    const content = new HexStoredAttributes(this.type, this.notes, this.river, this.road);
 
     const response = await saveHex(
                             map_settings_dialog_filename.value,
@@ -288,7 +292,14 @@ class HexData {
   }
 }
 
-
+function parseCellData( data = null, defaultHexData ) {
+  let cell = data ? JSON.parse(data) : defaultHexData;
+  let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
+  let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
+  let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
+  let road = Object.hasOwn(cell, "road") ? cell["road"] : 0;
+  return new HexStoredAttributes(type, notes, river, road);
+}
 
 class HexMap {
   constructor(view_params, maxX=16, maxY=16, minX=0, minY=0, mapCells = null, defaultHexData=null ) {
@@ -308,13 +319,9 @@ class HexMap {
       }
       for (let y = maxY; y >= minY; --y) {
         let cellId = hexId(x,y);
-        let cell = Object.hasOwn(mapCells, cellId) ? JSON.parse(mapCells[cellId]) : defaultHexData;
-        let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
-        let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
-        let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
-        let road = Object.hasOwn(cell, "road") ? cell["road"] : 0;
-        //console.log(type, notes)
-        let b = new HexData(x, y, type, notes, river, road);
+        let cell = parseCellData(mapCells[cellId], defaultHexData)
+        //console.log(cell)
+        let b = new HexData(x, y, cell.type, cell.notes, cell.river, cell.road);
         this.hexes[cellId] = b;
         d.appendChild(b.btn);
       }
@@ -385,23 +392,16 @@ class HexMap {
 
   updateMapData(maxX, maxY, minX, minY, mapCells, defaultHexData) {
     for (let cellId in this.hexes) {
-        let b = this.hexes[cellId];
+      let b = this.hexes[cellId];
+      let cell = parseCellData(mapCells[cellId], defaultHexData)
+      //console.log(cell)
+      let updated = b.updateHexData(cell.type, cell.notes, cell.river, cell.road);
 
-        let cell = Object.hasOwn(mapCells, cellId) ? JSON.parse(mapCells[cellId]) : defaultHexData;
-        let type = Object.hasOwn(cell, "type") ? cell["type"] : "unknown";
-        let notes = Object.hasOwn(cell, "notes") ? cell["notes"] : null;
-        let river = Object.hasOwn(cell, "river") ? cell["river"] : 0;
-        let road = Object.hasOwn(cell, "road") ? cell["road"] : 0;
-        //console.log(type, notes)
-
-        if(hex_dialog_close_callback_id == cellId &&
-           (type != b.type || notes != b.notes) ) {
-          alert("Another user has updated this hex.\n" +
-                "Cancel your edits to keep their updates.\n" +
-                "The updates: ("+mapCells[cellId]+")");
-        }
-
-        b.updateHexData(type, notes, river, road);
+      if(hex_dialog_close_callback_id == cellId && updated) {
+        alert("Another user has updated this hex.\n" +
+              "Cancel your edits to keep their updates.\n" +
+              "The updates: ("+mapCells[cellId]+")");
+      }
     }
   }
 
