@@ -154,58 +154,93 @@ function getRandomHexType() {
 }
 
 class HexData {
-  constructor( x, y, hexType = 'unknown', content = null, river=0, road=0 ) {
+  constructor( x, y, hex_type = 'unknown', notes = null, river=0, road=0 ) {
     this.x = x;
     this.y = y;
     this.btn = document.createElement("BUTTON");
-    if( content ) {
-      this.notes = content;
-    } else {
-      this.notes = '';
-    }
     this.btn.textContent = displayCordinates(x, y);
     this.btn.id = hexId(x, y);
     this.btn.classList.add('hex');
-    //this.setHexType(getRandomHexType(), 0);
-    this.setHexType(hexType, river, road);
+    this.updateHexData(hex_type, notes, river, road, true); // force update
     this.btn.addEventListener("click", () => this.handleClick() );
   }
 
   setHexType(hex_type, river, road) {
+
+ }
+
+  /**
+   * Updates the contents of an already existing Hex in the map
+   *
+   * @param hex_type : string index in to hex_attributes_by_type
+   * @param notes : text notes for hex
+   * @param river : int bit-field represent river exits starting north then clockwise
+   * @param road : int bit-field represent road exits starting north then clockwise
+   * @param force_update : ignore check for existing field values
+   * @return true if an update was made, otherwise false
+   */
+  updateHexData( hex_type, notes, river, road, force_update = false) {
+    // Cleanup inputs
     if( !Object.hasOwn(hex_attributes_by_type, hex_type) ) {
       hex_type = 'unknown';
     }
-    if ( this.type == hex_type && this.river==river && this.road==road) {
-      return;
+    if( !notes ) {
+      notes = '';
     }
-    if (this.type) {
-      this.btn.classList.remove(this.type);
+
+    // Check for any change
+    if ( !force_update &&
+         this.notes == notes &&
+         this.type == hex_type &&
+         this.river == river &&
+         this.road == road
+         ) {
+      return false;
     }
+
+    // Get Hex type specific attributes
+    let hex_type_attr = hex_attributes_by_type[hex_type];
+
+    if ( force_update || this.type != hex_type ) {
+      if (this.type) {
+        this.btn.classList.remove(this.type);
+      }
+      this.btn.classList.add(hex_type);
+      this.btn.style.backgroundColor = hex_type_attr.bg;
+      this.btn.style.color = hex_type_attr.fg;
+    }
+
+    if ( force_update || this.type != hex_type || this.notes != notes ) {
+      if (notes) {
+        this.btn.title=hex_type_attr.text+"\n"+notes.split("\n")[0];
+      } else {
+        this.btn.title=hex_type_attr.text;
+      }
+    }
+
+    // Update Hex Image background and river and road overlays
+    if ( force_update || this.type != hex_type ||
+         this.river != river || this.road == road ) {
+      var background = `url('hex-${hex_type}.svg')`;
+      for( var river_bit = 0; river_bit < 6; ++river_bit) {
+        if( river & (1 << river_bit) ) {
+          background = `url('hex-river${river_bit}.svg'), ` + background;
+        }
+      }
+      for( var road_bit = 0; road_bit < 6; ++road_bit) {
+        if( road & (1 << road_bit) ) {
+          background = `url('hex-road${road_bit}.svg'), ` + background;
+        }
+      }
+      this.btn.style.backgroundImage = background;
+    }
+
     this.type = hex_type;
     this.river = river;
     this.road = road;
-    this.btn.classList.add(hex_type);
-    let attr = hex_attributes_by_type[hex_type];
-    if (this.notes) {
-      this.btn.title=attr.text+"\n"+this.notes.split("\n")[0];
-    } else {
-      this.btn.title=attr.text;
-    }
-    this.btn.style.backgroundColor = attr.bg;
-    this.btn.style.color = attr.fg;
-    var background = `url('hex-${hex_type}.svg')`;
-    // Add River and road overlays here
-    for( var river_bit = 0; river_bit < 6; ++river_bit) {
-      if( river & (1 << river_bit) ) {
-        background = `url('hex-river${river_bit}.svg'), ` + background;
-      }
-    }
-    for( var road_bit = 0; road_bit < 6; ++road_bit) {
-      if( road & (1 << road_bit) ) {
-        background = `url('hex-road${road_bit}.svg'), ` + background;
-      }
-    }
-    this.btn.style.backgroundImage = background
+    this.notes = notes;
+
+    return true;
   }
 
   handleClick() {
@@ -229,13 +264,7 @@ class HexData {
     if (isNaN(road) || road<0 || road>63) {
       road = this.road
     }
-    if ( this.notes != hex_dialog_textarea.value ||
-         this.type != hex_dialog_select.value ||
-         this.river != river ||
-         this.road != road
-         ) {
-      this.notes = hex_dialog_textarea.value;
-      this.setHexType(hex_dialog_select.value, river, road);
+    if ( this.updateHexData(hex_dialog_select.value, hex_dialog_textarea.value, river, road) ) {
       this.saveHex();
     }
   }
@@ -372,8 +401,7 @@ class HexMap {
                 "The updates: ("+mapCells[cellId]+")");
         }
 
-        b.notes = notes;
-        b.setHexType(type, river, road);
+        b.updateHexData(type, notes, river, road);
     }
   }
 
