@@ -466,22 +466,21 @@ class HexMap {
   drag_start(event) {
     document.body.style.cursor = 'grabbing';
     event.dataTransfer.setDragImage(new Image(),0,0);
-    const data = {
-      'x': this.tx-event.clientX,
-      'y': this.ty-event.clientY
-    }
-    event.dataTransfer.setData('application/json', JSON.stringify(data));
+    this.drag_start_x = this.tx-event.clientX;
+    this.drag_start_y = this.ty-event.clientY;
   }
 
   drag_over(event) {
-    const data = JSON.parse(event.dataTransfer.getData('application/json'));
-    this.setPos(event.clientX + data.x, event.clientY + data.y);
+    if( this.drag_start_x ) {
+      this.setPos(event.clientX + this.drag_start_x, event.clientY + this.drag_start_y);
+    }
     event.preventDefault();
   }
 
   drop(event) {
     this.drag_over(event);
     document.body.style.cursor = 'auto';
+    this.drag_start_x = null;
   }
 
   getHexData( x, y ) {
